@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.75.0, maximum-scale=0.75.0, user-scalable=no">
+    <title>ITI Exam Portal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        primary: '#4f46e5',
+                        primaryHover: '#4338ca',
+                        secondary: '#0f172a',
+                    },
+                    boxShadow: {
+                        'float': '0 10px 40px -10px rgba(0,0,0,0.15)',
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.05)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background: #f1f5f9;
+            background-image: radial-gradient(at 0% 0%, rgba(226, 232, 240, 1) 0px, transparent 50%),
+                              radial-gradient(at 50% 0%, rgba(248, 250, 252, 1) 0px, transparent 50%),
+                              radial-gradient(at 100% 0%, rgba(224, 231, 255, 1) 0px, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: #334155;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 30px -5px rgba(0,0,0,0.05);
+        }
+
+        .glass-dark {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .floating-timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 50;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .animate-pop { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        .option-radio:checked + div {
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .option-radio:checked + div .letter-badge {
+            background-color: #4f46e5;
+            color: white;
+        }
+
+        input, select { transition: all 0.3s ease; }
+        input:focus, select:focus { transform: translateY(-1px); }
+
+        .watermark { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9998; opacity: 0.03; font-size: 28px; color: #000; display: flex; flex-wrap: wrap; align-content: flex-start; overflow: hidden; word-break: break-all; line-height: 2.5; transform: rotate(-15deg); scale: 1.5; font-weight: 800; text-transform: uppercase;}
+
+        @media print {
+            body * { visibility: hidden; }
+            #report-modal, #report-modal * { visibility: visible; }
+            #report-modal { position: absolute; left: 0; top: 0; padding: 0; background: white; height: auto; overflow: visible; backdrop-filter: none; background-image: none;}
+            .no-print { display: none !important; }
+            body { background: white; }
+        }
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900 flex flex-col">
+
+<!-- Watermark -->
+<div id="watermark" class="watermark hidden no-print"></div>
+
+<!-- CUSTOM BEAUTIFUL MODAL SYSTEM -->
+<div id="custom-modal-root" class="fixed inset-0 z-[11000] hidden flex items-center justify-center p-4 no-print">
+    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="closeCustomModal()"></div>
+    <div id="custom-modal-box" class="relative bg-white rounded-[2rem] shadow-2xl p-6 md:p-8 max-w-sm w-full transform scale-95 opacity-0 transition-all duration-300 border border-slate-100">
+        <div id="custom-modal-icon" class="mb-5 flex justify-center"></div>
+        <h3 id="custom-modal-title" class="text-xl md:text-2xl font-black text-slate-800 text-center mb-2 tracking-tight"></h3>
+        <div id="custom-modal-message" class="text-slate-500 text-center mb-6 whitespace-pre-wrap text-sm font-medium leading-relaxed"></div>
+        
+        <div id="custom-modal-input-container" class="hidden mb-6">
+            <input type="text" id="custom-modal-input" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-indigo-500 focus:bg-white transition-all font-bold text-center text-slate-700 shadow-inner">
+        </div>
+
+        <div id="custom-modal-actions" class="flex gap-3 justify-center">
+            <button id="custom-modal-cancel" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3.5 rounded-xl font-bold transition-all hidden active:scale-95" onclick="closeCustomModal()">Cancel</button>
+            <button id="custom-modal-confirm" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Print/View Report Modal -->
+<div id="report-modal" class="hidden fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm overflow-y-auto p-4 md:p-8">
+    <div class="max-w-4xl mx-auto glass-panel rounded-3xl p-6 md:p-10 relative">
+        <div class="no-print absolute top-4 right-4 md:top-8 md:right-8 flex gap-3">
+            <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg transition-transform active:scale-95 flex items-center gap-2" onclick="window.print()">🖨️ Print PDF</button>
+            <button class="bg-rose-500 hover:bg-rose-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg transition-transform active:scale-95 flex items-center gap-2" onclick="closeReport()">❌ Close</button>
+        </div>
+        <div id="report-content" class="mt-12 md:mt-0"></div>
+    </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div id="edit-student-modal" class="hidden fixed inset-0 z-[10000] glass-dark flex items-center justify-center p-4 no-print">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 md:p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
+        <h3 class="text-2xl font-bold text-slate-800 mb-6 pb-4 border-b border-slate-200">Edit Student Info</h3>
+        <div class="space-y-4">
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name</label><input type="text" id="edit-s-name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-800"></div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Father's Name</label><input type="text" id="edit-s-father" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-800"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Roll No</label><input type="number" id="edit-s-roll" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-800"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Phone</label><input type="number" id="edit-s-phone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-800"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Month</label><input type="text" id="edit-s-month" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-800"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Trade</label><input type="text" id="edit-s-trade" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-800"></div>
+            </div>
+            <div><label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Session (e.g. 2023 To 2025)</label><input type="text" id="edit-s-session" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-800"></div>
+        </div>
+        <div class="mt-8 space-y-3">
+            <button class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all active:scale-[0.98]" onclick="saveEditedResult()">Save Changes</button>
+            <button class="w-full bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 py-3.5 rounded-xl font-bold transition-all active:scale-[0.98]" onclick="closeEditModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="landing-page" class="flex-1 flex items-center justify-center p-4 md:p-8 no-print">
+    <div class="glass-panel w-full max-w-5xl rounded-[2.5rem] overflow-hidden flex flex-col md:flex-row shadow-float border border-white/80">
+        
+        <!-- Left Branding Side -->
+        <div class="md:w-5/12 bg-indigo-600 p-10 md:p-14 text-white flex flex-col justify-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
+            <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-500 rounded-full blur-3xl opacity-50"></div>
+            <div class="absolute -top-24 -right-24 w-64 h-64 bg-indigo-400 rounded-full blur-3xl opacity-50"></div>
+            
+            <div class="relative z-10 text-center md:text-left">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md mb-6 border border-white/20 mx-auto md:mx-0 shadow-lg">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <h1 class="text-4xl md:text-5xl font-black tracking-tight mb-4 leading-tight text-white">ITI Exam Portal <br><span class="text-indigo-200"></span></h1>
+                <p class="text-indigo-100/90 text-lg font-medium leading-relaxed"></p>
+            </div>
+        </div>
+        
+        <!-- Right Login Side -->
+        <div class="md:w-7/12 p-6 md:p-12 lg:p-14 bg-white/80 relative">
+            
+            <!-- Toggle -->
+            <div class="flex p-1.5 bg-slate-100/80 rounded-2xl mb-8 md:mb-10 border border-slate-200 max-w-sm mx-auto shadow-inner">
+                <button id="btn-student" class="flex-1 py-3 text-sm font-bold rounded-xl transition-all duration-300 bg-white text-indigo-600 shadow" onclick="switchTab('student')">Student Portal</button>
+                <button id="btn-teacher" class="flex-1 py-3 text-sm font-bold rounded-xl transition-all duration-300 text-slate-500 hover:text-slate-700" onclick="switchTab('teacher')">Admin Login</button>
+            </div>
+
+            <!-- Student Form -->
+            <div id="form-student" class="animate-pop">
+                <h2 class="text-2xl font-bold text-slate-800 mb-6 text-center tracking-tight">Student Registration</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Full Name</label>
+                        <input type="text" id="s-name" placeholder="Enter Full Name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 shadow-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Father's Name</label>
+                        <input type="text" id="s-father" placeholder="Enter Father's Name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Roll No (3 Digits)</label>
+                        <input type="number" id="s-roll" placeholder="Roll No" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Phone (10 Digits)</label>
+                        <input type="number" id="s-phone" placeholder="Phone No" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Month</label>
+                        <select id="s-month" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 appearance-none shadow-sm">
+                            <option value="" disabled selected>-- Select --</option>
+                            <option value="January">Jan</option><option value="February">Feb</option><option value="March">Mar</option><option value="April">Apr</option><option value="May">May</option><option value="June">Jun</option><option value="July">Jul</option><option value="August">Aug</option><option value="September">Sep</option><option value="October">Oct</option><option value="November">Nov</option><option value="December">Dec</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Session (Year to Year)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="s-session-start" placeholder="2023" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 text-center shadow-sm">
+                            <span class="flex items-center text-slate-400 font-bold">-</span>
+                            <input type="number" id="s-session-end" placeholder="2025" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 text-center shadow-sm">
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Trade</label>
+                        <select id="s-trade" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 appearance-none shadow-sm">
+                            <option value="" disabled selected>-- Select Trade --</option>
+                            <option value="Electrician">Electrician</option><option value="Fitter">Fitter</option><option value="Diesel Mechanic">Diesel Mechanic</option><option value="Welder">Welder</option><option value="Electronics Mechanic">Electronics Mechanic</option><option value="ICTSM">ICTSM</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="w-full mt-8 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-lg tracking-wide shadow-[0_8px_20px_-6px_rgba(79,70,229,0.5)] transition-all active:scale-95 flex justify-center items-center gap-2" onclick="startTest()">
+                    Start Live Exam
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
+            </div>
+
+            <!-- Teacher Form -->
+            <div id="form-teacher" class="hidden animate-pop">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-600 mb-4 shadow-inner">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Admin Authentication</h2>
+                    <p class="text-slate-500 text-sm mt-1 font-medium"></p>
+                </div>
+                
+                <div class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Admin Email</label>
+                        <input type="email" id="admin-email" placeholder="admin@itimahnar.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 shadow-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Admin Password</label>
+                        <input type="password" id="admin-pass" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all font-medium text-slate-800 shadow-sm">
+                    </div>
+                    
+                    <button class="w-full mt-6 bg-slate-800 hover:bg-slate-900 text-white py-4 rounded-2xl font-bold text-lg tracking-wide shadow-lg transition-all active:scale-95" onclick="loginTeacher()">Log In Securely</button>
+                    <p id="login-err" class="text-rose-500 text-center font-bold text-sm mt-4 min-h-[20px]"></p>
+                    
+                    <button class="w-full text-center text-slate-500 hover:text-indigo-600 font-semibold text-sm transition-colors py-2" onclick="forgotPassword()">Forgot Password?</button>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<div class="flex-1 flex flex-col no-print hidden w-full max-w-7xl mx-auto px-4 py-6 md:py-10 transition-all duration-500" id="main-container">
+    
+    <!-- Student Section -->
+    <div id="student-section" class="hidden flex-1 flex flex-col max-w-3xl mx-auto w-full">
+        <div id="student-test" class="flex-1 flex flex-col relative">
+            <div id="timer-display" class="floating-timer glass-dark text-white px-6 py-3 rounded-full shadow-float font-mono text-xl font-bold tracking-wider border border-white/10 flex items-center gap-3 backdrop-blur-xl">
+                <svg class="w-5 h-5 text-rose-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Loading...</span>
+            </div>
+            <div id="test-container" class="glass-panel rounded-[2rem] p-6 md:p-10 shadow-float w-full mt-16 md:mt-0 relative overflow-hidden">
+                <!-- Test UI injected here -->
+            </div>
+        </div>
+
+        <div id="cancel-screen" class="hidden flex-1 flex flex-col items-center justify-center text-center px-4 animate-[slideDown_0.5s_ease-out]">
+            <div class="glass-panel p-10 md:p-16 rounded-[2.5rem] shadow-float border-2 border-emerald-100 max-w-lg w-full relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+                <div class="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border border-emerald-100">
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 id="final-title" class="text-3xl md:text-4xl font-black text-slate-800 mb-3 tracking-tight">Test Submitted!</h2>
+                <p id="cancel-reason" class="text-slate-500 text-lg mb-10 font-medium">Your data and answers have been securely sent to your teacher.</p>
+                <button class="bg-slate-800 hover:bg-slate-900 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg transition-all active:scale-95" onclick="location.reload()">Return Home</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Dashboard Section -->
+    <div id="teacher-dashboard" class="hidden flex-1 flex flex-col gap-6 w-full">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+            
+            <!-- Left Sidebar Controls -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- REDESIGNED NAVIGATION MENU (GRID) -->
+                <div class="glass-panel p-5 rounded-[2rem] shadow-sm">
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <button id="nav-add" class="nav-btn flex flex-col items-center justify-center py-4 px-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-colors shadow-sm" onclick="toggleTeacherView('add')">
+                            <span class="text-lg mb-1">➕</span> Add Question
+                        </button>
+                        <button id="nav-bank" class="nav-btn flex flex-col items-center justify-center py-4 px-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-colors shadow-sm" onclick="toggleTeacherView('bank')">
+                            <span class="text-lg mb-1">🏦</span> Stock Question
+                        </button>
+                        <button id="nav-examsets" class="nav-btn flex flex-col items-center justify-center py-4 px-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-colors shadow-sm" onclick="toggleTeacherView('examsets')">
+                            <span class="text-lg mb-1">📚</span> Exam Question Sets
+                        </button>
+                        <button id="nav-live" class="nav-btn flex flex-col items-center justify-center py-4 px-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-colors shadow-sm" onclick="toggleTeacherView('live')">
+                            <span class="text-lg mb-1">🟢</span> Live Question
+                        </button>
+                        <button id="nav-results" class="nav-btn flex flex-col items-center justify-center py-4 px-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-colors shadow-sm" onclick="toggleTeacherView('results')">
+                            <span class="text-lg mb-1">📊</span> Student Results
+                        </button>
+                        <button id="nav-settings" class="nav-btn flex flex-col items-center justify-center py-4 px-2 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 font-bold text-sm hover:bg-indigo-50 hover:text-indigo-600 transition-colors shadow-sm" onclick="toggleTeacherView('settings')">
+                            <span class="text-lg mb-1">⚙️</span> Settings
+                        </button>
+                    </div>
+                    
+                    <!-- NEW: Fix Database Button -->
+                    <button id="fix-db-btn" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 mb-3" onclick="fixDatabase()">
+                        🛠️ Fix Old Data
+                    </button>
+                    
+                    <!-- Full width logout button aligned at the bottom -->
+                    <button class="w-full bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95" onclick="location.reload()">
+                        🚪 Logout
+                    </button>
+                </div>
+
+                <!-- Exam Control Block -->
+                <div class="glass-panel p-6 rounded-[2rem] text-center shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                    <h3 class="text-lg font-black text-slate-800 mb-1 uppercase tracking-wider mt-2">Exam Control</h3>
+                    <p class="text-sm font-medium text-slate-500 mb-5">Duration: <strong id="display-duration" class="text-indigo-600 text-base">10</strong> Min</p>
+                    
+                    <div class="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100 shadow-inner">
+                        <span class="block text-xs font-bold text-slate-400 uppercase mb-2">Current Status</span>
+                        <span id="exam-status-text" class="inline-block font-black text-rose-500 bg-rose-50 px-4 py-2 rounded-xl border border-rose-100 text-sm">STOPPED</span>
+                    </div>
+                    
+                    <button id="exam-toggle-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all active:scale-95">🟢 Start Exam</button>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="lg:col-span-3 glass-panel p-6 md:p-8 rounded-[2rem] min-h-[600px] shadow-sm">
+                
+                <div id="settings-section" class="hidden animate-pop">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3"><span class="bg-slate-100 p-2 rounded-lg">⚙️</span> App Settings</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-bold text-indigo-700 mb-4 flex items-center gap-2">🔒 Admin Login Pass</h4>
+                            <input type="text" id="set-admin-pass" placeholder="New Password" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-800 mb-4">
+                            <button class="w-full bg-indigo-50 text-indigo-700 hover:bg-indigo-100 py-3 rounded-xl font-bold transition-all" onclick="updateAdminPass()">Update Password</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-bold text-amber-700 mb-4 flex items-center gap-2">🗑️ Delete/Edit Pass</h4>
+                            <input type="text" id="set-del-pass" placeholder="New Sys Password" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 transition-all font-medium text-slate-800 mb-4">
+                            <button class="w-full bg-amber-50 text-amber-700 hover:bg-amber-100 py-3 rounded-xl font-bold transition-all" onclick="updateDelPass()">Update Password</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow md:col-span-2">
+                            <h4 class="font-bold text-emerald-700 mb-4 flex items-center gap-2">⏱️ Exam Duration</h4>
+                            <input type="number" id="set-duration" placeholder="Minutes (e.g. 10)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-medium text-slate-800 mb-4 max-w-sm block">
+                            <button class="w-full max-w-sm block bg-emerald-50 text-emerald-700 hover:bg-emerald-100 py-3 rounded-xl font-bold transition-all" onclick="updateDuration()">Update Time</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="add-question-section" class="hidden animate-pop">
+                    <div class="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                        <h3 id="form-title" class="text-2xl font-bold text-slate-800 tracking-tight">Add New Question</h3>
+                    </div>
+                    <input type="hidden" id="edit-index" value="-1">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Year</label>
+                            <select id="q-year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-800 shadow-sm">
+                                <option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Chapter/Set</label>
+                            <input type="text" id="q-chapter" placeholder="Optional" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-800 shadow-sm">
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Question Text</label>
+                        <input type="text" id="q-text" placeholder="Type question here..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-800 text-lg shadow-inner">
+                    </div>
+                    
+                    <div class="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 mb-6 flex flex-col items-start gap-4">
+                        <label class="text-sm font-bold text-indigo-800 flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Attach Image (Optional)</label>
+                        <input type="file" id="q-image-file" accept="image/*" onchange="encodeImage(event)" class="text-sm file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer">
+                        <input type="hidden" id="q-image-base64">
+                        <img id="q-image-preview" class="max-w-[200px] hidden rounded-xl shadow-md border border-slate-200 mt-2">
+                        <button class="text-rose-600 bg-rose-50 px-4 py-2 rounded-lg text-sm font-bold hidden hover:bg-rose-100" id="remove-img-btn" onclick="removeImage()">Remove Image</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-inner">
+                        <div><input type="text" id="opt-a" placeholder="Option A" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"></div>
+                        <div><input type="text" id="opt-b" placeholder="Option B" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"></div>
+                        <div><input type="text" id="opt-c" placeholder="Option C" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"></div>
+                        <div><input type="text" id="opt-d" placeholder="Option D" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"></div>
+                    </div>
+                    
+                    <div class="mb-8 max-w-xs">
+                        <label class="block text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Correct Answer</label>
+                        <select id="correct-ans" class="w-full bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-black text-lg">
+                            <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex flex-col gap-3">
+                        <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 transition-all active:scale-95" id="save-btn" onclick="saveQuestion()">Save to Question Bank</button>
+                        <button class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold transition-all hidden active:scale-95" id="cancel-edit-btn" onclick="cancelEdit()">Cancel Edit</button>
+                    </div>
+                </div>
+
+                <div id="bank-questions-section" class="hidden animate-pop">
+                    <div class="text-center mb-8">
+                        <h3 class="text-2xl font-bold text-slate-800">Question Stock</h3>
+                        <p class="text-slate-500 mt-2 font-medium">Select questions to create an Exam Set</p>
+                    </div>
+                    
+                    <div class="bg-indigo-50/60 p-5 rounded-2xl border border-indigo-100 mb-8 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+                        <input type="text" id="bulk-set-name" placeholder="Exam Set Name (e.g. Safety 11)" class="w-full md:flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700">
+                        <button class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-xl font-bold shadow-md transition-all active:scale-95 whitespace-nowrap" onclick="createSetFromSelected()">📁 Save as Set</button>
+                    </div>
+
+                    <div id="bank-questions-list" class="space-y-5"></div>
+                </div>
+
+                <div id="exam-sets-section" class="hidden animate-pop">
+                    <div class="text-center mb-8 border-b border-slate-100 pb-6">
+                        <h3 class="text-3xl font-black text-slate-800 flex items-center justify-center gap-3">📚 Exam Sets</h3>
+                        <p class="text-slate-500 mt-2 font-medium">Manage, Print, or deploy sets to Live Test.</p>
+                    </div>
+                    <div id="exam-sets-list" class="space-y-6"></div>
+                </div>
+
+                <div id="live-questions-section" class="hidden animate-pop">
+                    <div class="text-center mb-8 border-b border-slate-100 pb-6">
+                        <h3 class="text-3xl font-black text-slate-800 flex items-center justify-center gap-3"><span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span> Live Questions</h3>
+                        <p class="text-slate-500 mt-2 font-medium">These are currently visible in the student test.</p>
+                    </div>
+                    <div id="live-questions-list" class="space-y-5"></div>
+                </div>
+
+                <div id="view-results-section" class="hidden animate-pop">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-slate-100 pb-4 gap-4">
+                        <h3 class="text-2xl font-bold text-slate-800 tracking-tight">Student Results</h3>
+                        <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-5 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-sm border border-indigo-100" onclick="printAllResults()">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 00-2 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            Print All Scores
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm bg-white">
+                        <table class="w-full text-left whitespace-nowrap">
+                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-black tracking-wider">
+                                <tr>
+                                    <th class="px-6 py-4 border-b border-slate-200">Name</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Father Name</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Roll</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Session</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Month</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Trade</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Score</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Status</th>
+                                    <th class="px-6 py-4 border-b border-slate-200">Approval</th>
+                                    <th class="px-6 py-4 border-b border-slate-200 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="result-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center py-6 text-slate-400 text-sm font-medium mt-auto no-print">
+    Designed & Developed by <span class="text-indigo-500 font-bold">Mithilesh Kumar</span>
+</div>
+
+<script>
+    // EXACT ORIGINAL FIREBASE FETCH SETTINGS - DO NOT MODIFY
+    const firebaseConfig = {
+      apiKey: "AIzaSyCNUCla7pmElV40nsDJuGCJPHaMw8HiS6A",
+      authDomain: "admission-cdeed.firebaseapp.com",
+      projectId: "admission-cdeed",
+      storageBucket: "admission-cdeed.firebasestorage.app",
+      messagingSenderId: "837912100887",
+      appId: "1:837912100887:web:1fa6d37e4e4df400325c52",
+      measurementId: "G-3JQQLVMHRC"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(); 
+    const auth = firebase.auth();
+
+    let questions = [];             
+    let studentActiveQuestions = []; 
+    let studentResults = [];
+    let isExamActive = false; 
+    let SYS_DEL_PASS = "Fitter@896357", examDurationMinutes = 10;
+    
+    let isTestActive = false, timerInterval, totalTime = 600, currentStudent = {};
+    let currentQuestionIndex = 0, studentAnswers = {}; 
+
+    // --- CUSTOM MODAL SYSTEM (REPLACES ALERT, CONFIRM, PROMPT) ---
+    let currentModalCallback = null;
+
+    function showCustomModal({ title = 'Notification', message = '', type = 'alert', inputType = 'text', confirmText = 'OK', cancelText = 'Cancel', onConfirm = null }) {
+        const root = document.getElementById('custom-modal-root');
+        const box = document.getElementById('custom-modal-box');
+        const titleEl = document.getElementById('custom-modal-title');
+        const messageEl = document.getElementById('custom-modal-message');
+        const inputContainer = document.getElementById('custom-modal-input-container');
+        const inputEl = document.getElementById('custom-modal-input');
+        const cancelBtn = document.getElementById('custom-modal-cancel');
+        const confirmBtn = document.getElementById('custom-modal-confirm');
+        const iconEl = document.getElementById('custom-modal-icon');
+
+        titleEl.innerText = title;
+        messageEl.innerText = message;
+        currentModalCallback = onConfirm;
+        
+        let iconHtml = `<div class="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500 border border-indigo-100"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>`;
+        if(title.toLowerCase().includes('error') || title.toLowerCase().includes('wrong') || title.toLowerCase().includes('invalid') || title.toLowerCase().includes('not found')) {
+             iconHtml = `<div class="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>`;
+        } else if(title.toLowerCase().includes('success') || title.toLowerCase().includes('saved') || title.toLowerCase().includes('fix')) {
+             iconHtml = `<div class="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 border border-emerald-100"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div>`;
+        } else if(type === 'confirm' || type === 'prompt') {
+            iconHtml = `<div class="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 border border-amber-100"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>`;
+        }
+        iconEl.innerHTML = iconHtml;
+
+        confirmBtn.innerText = confirmText;
+        inputContainer.classList.add('hidden');
+        cancelBtn.classList.add('hidden');
+        inputEl.value = '';
+
+        if(type === 'prompt') {
+            inputContainer.classList.remove('hidden');
+            inputEl.type = inputType;
+            cancelBtn.classList.remove('hidden');
+        } else if (type === 'confirm') {
+            cancelBtn.classList.remove('hidden');
+        }
+
+        confirmBtn.onclick = () => {
+            let val = inputEl.value;
+            closeCustomModal();
+            if(currentModalCallback) currentModalCallback(type === 'prompt' ? val : true);
+        };
+
+        root.classList.remove('hidden');
+        void box.offsetWidth; 
+        box.classList.remove('scale-95', 'opacity-0');
+        box.classList.add('scale-100', 'opacity-100');
+        
+        if(type === 'prompt') setTimeout(() => inputEl.focus(), 100);
+    }
+
+    function closeCustomModal() {
+        const root = document.getElementById('custom-modal-root');
+        const box = document.getElementById('custom-modal-box');
+        box.classList.remove('scale-100', 'opacity-100');
+        box.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => { root.classList.add('hidden'); }, 300);
+    }
+
+    function customAlert(message, title = 'Notification') { showCustomModal({ type: 'alert', message, title }); }
+    function customConfirm(message, title, onConfirm) { showCustomModal({ type: 'confirm', message, title, onConfirm }); }
+    function customPrompt(message, title, onConfirm, inputType = 'text') { showCustomModal({ type: 'prompt', message, title, onConfirm, inputType }); }
+    // --- END CUSTOM MODAL SYSTEM ---
+
+    // ===============================================
+    // DATABASE MIGRATION MAGIC FUNCTION (FIX TOOL)
+    // ===============================================
+    function fixDatabase() {
+        customConfirm("Kya aap sach mein apne purane Firebase data (sets document se) ko naye website format mein lana chahte hain?", "Confirm Fix Data", () => {
+            let btn = document.getElementById('fix-db-btn');
+            btn.innerHTML = "⏳ Fix ho raha hai...";
+            
+            db.collection('exam_data').doc('sets').get().then(doc => {
+                if(doc.exists) {
+                    let data = doc.data().setList || [];
+                    let newQuestions = [];
+                    
+                    data.forEach(setObj => {
+                        let setName = setObj.name || setObj.id || "Purana Set";
+                        let qArr = setObj.questionArray || [];
+                        
+                        qArr.forEach(q => {
+                            let qText = q.text || q.textstring || "";
+                            let exists = questions.some(existingQ => existingQ && existingQ.text === qText);
+                            
+                            if(!exists && qText !== "") {
+                                newQuestions.push({
+                                    text: qText,
+                                    options: {
+                                        A: (q.options && q.options.A) || "",
+                                        B: (q.options && q.options.B) || "",
+                                        C: (q.options && q.options.C) || "",
+                                        D: (q.options && q.options.D) || ""
+                                    },
+                                    answer: q.answer || "A",
+                                    image: q.image || "",
+                                    isActive: false, // Stock me jayega
+                                    year: q.year || "1st Year",
+                                    chapter: setName
+                                });
+                            }
+                        });
+                    });
+                    
+                    if (newQuestions.length > 0) {
+                        let finalQuestions = [...questions, ...newQuestions];
+                        db.collection('exam_data').doc('questions').set({ questionList: finalQuestions }).then(() => {
+                            customAlert("✅ JADOO HO GAYA! Aapke " + newQuestions.length + " purane questions website ke Stock me wapas aa gaye hain.", "Success Fix");
+                            setTimeout(() => { location.reload(); }, 2500);
+                        }).catch(err => { 
+                            customAlert("Error: " + err.message, "Error"); 
+                            btn.innerHTML = "🛠️ Fix Old Data"; 
+                        });
+                    } else {
+                        customAlert("Data pehle se hi theek hai ya fir koi naya question nahi mila.", "Already Fixed");
+                        btn.innerHTML = "🛠️ Fix Old Data";
+                    }
+                } else {
+                    customAlert("'sets' naam ka purana data Firebase me nahi mila.", "Not Found");
+                    btn.innerHTML = "🛠️ Fix Old Data";
+                }
+            }).catch(err => { 
+                customAlert("Error: " + err.message, "Error"); 
+                btn.innerHTML = "🛠️ Fix Old Data"; 
+            });
+        });
+    }
+
+    function switchTab(role) {
+        if(role === 'student') {
+            document.getElementById('btn-student').classList.add('bg-white', 'text-indigo-600', 'shadow');
+            document.getElementById('btn-student').classList.remove('text-slate-500');
+            document.getElementById('btn-teacher').classList.remove('bg-white', 'text-indigo-600', 'shadow');
+            document.getElementById('btn-teacher').classList.add('text-slate-500');
+            document.getElementById('form-student').classList.remove('hidden');
+            document.getElementById('form-teacher').classList.add('hidden');
+        } else {
+            document.getElementById('btn-teacher').classList.add('bg-white', 'text-indigo-600', 'shadow');
+            document.getElementById('btn-teacher').classList.remove('text-slate-500');
+            document.getElementById('btn-student').classList.remove('bg-white', 'text-indigo-600', 'shadow');
+            document.getElementById('btn-student').classList.add('text-slate-500');
+            document.getElementById('form-teacher').classList.remove('hidden');
+            document.getElementById('form-student').classList.add('hidden');
+        }
+    }
+
+    db.collection('exam_data').doc('settings').onSnapshot(doc => {
+        if(doc.exists) {
+            let data = doc.data();
+            if(data.deletePass) SYS_DEL_PASS = data.deletePass;
+            if(data.examDuration) examDurationMinutes = parseInt(data.examDuration);
+            
+            document.getElementById('set-del-pass').value = SYS_DEL_PASS;
+            document.getElementById('set-duration').value = examDurationMinutes;
+            if(document.getElementById('display-duration')) {
+                document.getElementById('display-duration').innerText = examDurationMinutes;
+            }
+        }
+    });
+
+    db.collection('exam_data').doc('exam_status').onSnapshot(doc => {
+        if(doc.exists) { isExamActive = doc.data().isExamActive || false; } else { isExamActive = false; }
+        
+        let statusText = document.getElementById('exam-status-text');
+        let toggleBtn = document.getElementById('exam-toggle-btn');
+        if(statusText && toggleBtn) {
+            if (isExamActive) {
+                statusText.innerText = "LIVE (Test Active)"; 
+                statusText.className = "inline-block font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200 text-sm shadow-inner";
+                toggleBtn.innerText = "🔴 Stop Exam"; 
+                toggleBtn.className = "w-full bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-rose-200 transition-all active:scale-95";
+                toggleBtn.onclick = () => toggleExam(false);
+            } else {
+                statusText.innerText = "STOPPED"; 
+                statusText.className = "inline-block font-black text-rose-500 bg-rose-50 px-4 py-2 rounded-xl border border-rose-100 text-sm shadow-inner";
+                toggleBtn.innerText = "🟢 Start Exam"; 
+                toggleBtn.className = "w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all active:scale-95";
+                toggleBtn.onclick = () => toggleExam(true);
+            }
+        }
+    });
+
+    db.collection('exam_data').doc('questions').onSnapshot(doc => {
+        try {
+            if(doc.exists) { questions = doc.data().questionList || []; } else { questions = []; }
+            if(!document.getElementById('bank-questions-section')?.classList.contains('hidden')) renderBankQuestions();
+            if(!document.getElementById('exam-sets-section')?.classList.contains('hidden')) renderExamSets();
+            if(!document.getElementById('live-questions-section')?.classList.contains('hidden')) renderLiveQuestions();
+        } catch(e) { console.error("Error", e); }
+    });
+
+    db.collection('test_results').onSnapshot(snapshot => {
+        try {
+            studentResults = [];
+            snapshot.forEach(doc => { 
+                let data = doc.data(); 
+                if (data) { data.id = doc.id; studentResults.push(data); }
+            });
+            
+            studentResults.sort((a, b) => {
+                let tA = (a.timestamp && a.timestamp.seconds) ? a.timestamp.seconds : 0;
+                let tB = (b.timestamp && b.timestamp.seconds) ? b.timestamp.seconds : 0;
+                return tB - tA; 
+            });
+
+            if(!document.getElementById('view-results-section')?.classList.contains('hidden')) renderResults();
+        } catch(e) { console.error("Error", e); }
+    });
+
+    function getSetName(q) {
+        if (!q) return null;
+        let val = q.assignedSet || q.examSet || q.set_name || q.setName || q.set || q.chapter;
+        if (val !== undefined && val !== null) {
+            let strVal = String(val).trim();
+            if (strVal !== '') return strVal;
+        }
+        return null;
+    }
+
+    function startTest() {
+        if(!isExamActive) return customAlert("Exam abhi shuru nahi hua hai. Kripya teacher ka intezar karein!", "Not Started");
+
+        studentActiveQuestions = questions.filter(q => q && q.isActive === true);
+
+        let name = document.getElementById('s-name').value;
+        let father = document.getElementById('s-father').value;
+        let roll = document.getElementById('s-roll').value;
+        let phone = document.getElementById('s-phone').value;
+        let month = document.getElementById('s-month').value;
+        let sessionStart = document.getElementById('s-session-start').value;
+        let sessionEnd = document.getElementById('s-session-end').value;
+        let trade = document.getElementById('s-trade').value;
+
+        if(!name || !father || !roll || !phone || !month || !sessionStart || !sessionEnd || !trade) return customAlert("Puri details fill karna zaruri hai!", "Missing Details");
+        if(roll.length !== 3) return customAlert("Error: Roll Number exact 3 digit ka hona chahiye!", "Invalid Roll No");
+        if(phone.length !== 10) return customAlert("Error: Phone Number exact 10 digit ka hona chahiye!", "Invalid Phone");
+        if(studentActiveQuestions.length === 0) return customAlert("No live questions available in database. Please ask admin to add questions.", "No Questions");
+        
+        let session = sessionStart + " To " + sessionEnd;
+
+        let confirmMessage = `Kripya apni details check kar lein:\n\n👤 Naam: ${name}\n👨‍‍👦 Father: ${father}\n🔢 Roll No: ${roll}\n📱 Phone: ${phone}\n🗓 Session: ${session}\n🛠 Trade: ${trade}\n\nKya ye jankari bilkul sahi hai?`;
+        
+        customConfirm(confirmMessage, 'Confirm Registration', () => {
+            let elem = document.documentElement;
+            if (elem.requestFullscreen) { elem.requestFullscreen().catch(err => console.log(err)); }
+
+            document.getElementById('watermark').innerText = Array(200).fill(`${name} (${roll}) - ${phone}`).join("   •   ");
+            document.getElementById('watermark').classList.remove('hidden');
+
+            studentActiveQuestions = studentActiveQuestions.sort(() => Math.random() - 0.5).map(q => {
+                let shuffledKeys = ['A', 'B', 'C', 'D'].sort(() => Math.random() - 0.5);
+                return { ...q, shuffledKeys };
+            });
+            
+            currentStudent = { name, father, roll, phone, month, session, trade, approvalStatus: 'Pending' };
+            currentQuestionIndex = 0; studentAnswers = {};
+            
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('main-container').classList.remove('hidden');
+            document.getElementById('student-section').classList.remove('hidden');
+            
+            loadTestUI(); 
+            isTestActive = true; totalTime = examDurationMinutes * 60; startCountdown();
+        });
+    }
+
+    function loadTestUI() {
+        let container = document.getElementById('test-container');
+        let q = studentActiveQuestions[currentQuestionIndex];
+        if(!q) return;
+        let ans = studentAnswers[currentQuestionIndex] || "";
+        
+        let imgHTML = q.image ? `<img src="${q.image}" class="max-h-64 rounded-2xl mx-auto block mb-8 shadow-sm border border-slate-200">` : '';
+
+        let displayLetters = ['A', 'B', 'C', 'D'];
+        let keys = q.shuffledKeys || ['A', 'B', 'C', 'D'];
+
+        let optionsHTML = keys.map((k, idx) => `
+            <label class="block relative cursor-pointer group">
+                <input type="radio" name="current_q" value="${k}" onchange="saveAnswer('${k}')" class="peer sr-only option-radio" ${ans === k ? 'checked' : ''}> 
+                <div class="flex items-center p-5 border-2 border-slate-200 rounded-2xl transition-all group-hover:border-indigo-300 group-hover:bg-indigo-50/50 bg-white shadow-sm">
+                    <span class="letter-badge w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 font-bold mr-4 transition-colors shrink-0">${displayLetters[idx]}</span> 
+                    <span class="text-lg font-medium text-slate-700 leading-snug">${q.options ? q.options[k] : ''}</span>
+                </div>
+            </label>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="flex justify-between items-center mb-6">
+                <span class="bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide border border-indigo-100">Question ${currentQuestionIndex + 1} of ${studentActiveQuestions.length}</span>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-8 leading-relaxed">${currentQuestionIndex + 1}. ${q.text || ''}</h2>
+            ${imgHTML}
+            <div class="space-y-4 mb-10">${optionsHTML}</div>
+            
+            <div class="flex justify-between gap-4 pt-6 border-t border-slate-100">
+                <button class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-4 rounded-xl font-bold transition-all disabled:opacity-50 active:scale-95" onclick="prevQuestion()" ${currentQuestionIndex === 0 ? 'disabled' : ''}>Back</button>
+                ${currentQuestionIndex === studentActiveQuestions.length - 1 ? 
+                    `<button class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all active:scale-95" onclick="submitTest('Submitted')">Submit Test</button>` : 
+                    `<button class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95" onclick="nextQuestion()">Next</button>`
+                }
+            </div>
+        `;
+    }
+
+    function saveAnswer(val) { studentAnswers[currentQuestionIndex] = val; loadTestUI(); }
+    function nextQuestion() { if(currentQuestionIndex < studentActiveQuestions.length - 1) { currentQuestionIndex++; loadTestUI(); } }
+    function prevQuestion() { if(currentQuestionIndex > 0) { currentQuestionIndex--; loadTestUI(); } }
+
+    function startCountdown() {
+        clearInterval(timerInterval);
+        document.getElementById('timer-display').style.display = 'flex';
+        timerInterval = setInterval(() => {
+            totalTime--; let m = Math.floor(totalTime / 60), s = totalTime % 60;
+            document.getElementById('timer-display').innerHTML = `<svg class="w-5 h-5 text-rose-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ${m}:${s < 10 ? '0' : ''}${s}`;
+            if(totalTime <= 30) document.getElementById('timer-display').classList.add('bg-rose-900/90', 'border-rose-500');
+            if(totalTime <= 0) { 
+                isTestActive = false;
+                customAlert("Time Up! Test will auto-submit.", "Time's Up"); 
+                setTimeout(() => submitTest('Submitted'), 1500);
+            }
+        }, 1000);
+    }
+
+    function submitTest(status) {
+        if(!isTestActive && status !== 'Submitted') return; 
+        
+        isTestActive = false; 
+        clearInterval(timerInterval);
+        document.getElementById('timer-display').style.display = 'none';
+        document.getElementById('watermark').classList.add('hidden');
+        
+        if (document.fullscreenElement) { document.exitFullscreen().catch(err => console.log(err)); }
+        
+        let score = 0;
+        let testSnapshotArr = []; 
+        
+        studentActiveQuestions.forEach((q, i) => { 
+            if(!q) return;
+            let stdAns = studentAnswers[i] || 'Unattempted';
+            if(stdAns === q.answer) score++; 
+            
+            testSnapshotArr.push({
+                text: q.text || '', image: q.image || null, options: q.options || {},
+                answer: q.answer || '', studentAnswer: stdAns
+            });
+        });
+
+        db.collection('test_results').add({ 
+            ...currentStudent, score, total: studentActiveQuestions.length, status,
+            dateTime: new Date().toLocaleString('en-IN'),
+            testSnapshot: testSnapshotArr,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        if(status === 'Submitted') {
+            document.getElementById('student-test').classList.add('hidden');
+            document.getElementById('cancel-screen').classList.remove('hidden');
+        }
+    }
+
+    function encodeImage(event) {
+        let file = event.target.files[0];
+        if(!file) return;
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('q-image-base64').value = e.target.result;
+            document.getElementById('q-image-preview').src = e.target.result;
+            document.getElementById('q-image-preview').classList.remove('hidden');
+            document.getElementById('remove-img-btn').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    function removeImage() {
+        document.getElementById('q-image-file').value = "";
+        document.getElementById('q-image-base64').value = "";
+        document.getElementById('q-image-preview').classList.add('hidden');
+        document.getElementById('remove-img-btn').classList.add('hidden');
+    }
+
+    function loginTeacher() {
+        let email = document.getElementById('admin-email').value;
+        let pass = document.getElementById('admin-pass').value;
+        
+        auth.signInWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('main-container').classList.remove('hidden');
+            document.getElementById('teacher-dashboard').classList.remove('hidden');
+            toggleTeacherView('live');
+        })
+        .catch((error) => {
+            document.getElementById('login-err').innerText = "Incorrect Password! Or Admin Email not configured.";
+        });
+    }
+
+    function forgotPassword() {
+        let email = document.getElementById('admin-email').value;
+        if (!email) { return customAlert("Please enter Admin Email first.", "Missing Email"); }
+
+        auth.fetchSignInMethodsForEmail(email).then((signInMethods) => {
+            if (signInMethods.length === 0) { customAlert("Error: Email not registered!", "Not Found"); } 
+            else {
+                auth.sendPasswordResetEmail(email).then(() => { 
+                    customAlert("Password reset link sent to email!", "Success"); 
+                }).catch((error) => { customAlert("Error: " + error.message, "Error"); });
+            }
+        }).catch((error) => { customAlert("Error: " + error.message, "Error"); });
+    }
+
+    function toggleTeacherView(view) {
+        // Manage UI sections
+        ['add-question-section', 'bank-questions-section', 'exam-sets-section', 'live-questions-section', 'view-results-section', 'settings-section'].forEach(id => {
+            if(document.getElementById(id)) document.getElementById(id).classList.add('hidden');
+        });
+        
+        if(view === 'add') document.getElementById('add-question-section').classList.remove('hidden');
+        else if(view === 'bank') { document.getElementById('bank-questions-section').classList.remove('hidden'); renderBankQuestions(); }
+        else if(view === 'examsets') { document.getElementById('exam-sets-section').classList.remove('hidden'); renderExamSets(); }
+        else if(view === 'live') { document.getElementById('live-questions-section').classList.remove('hidden'); renderLiveQuestions(); }
+        else if(view === 'settings') { document.getElementById('settings-section').classList.remove('hidden'); }
+        else { document.getElementById('view-results-section').classList.remove('hidden'); renderResults(); }
+
+        // Manage Sidebar Active States
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('bg-indigo-50', 'text-indigo-600', 'border-indigo-200');
+            btn.classList.add('bg-slate-50', 'text-slate-600', 'border-slate-100');
+        });
+        const activeBtn = document.getElementById('nav-' + view);
+        if(activeBtn) {
+            activeBtn.classList.remove('bg-slate-50', 'text-slate-600', 'border-slate-100');
+            activeBtn.classList.add('bg-indigo-50', 'text-indigo-600', 'border-indigo-200');
+        }
+    }
+
+    function toggleExam(start) { 
+        if (start) {
+            customConfirm("Start the live exam for students?", "Confirm Start", () => {
+                db.collection('exam_data').doc('exam_status').set({ isExamActive: true }, {merge:true}); 
+            });
+        } else {
+             customConfirm("Stop the live exam? Students won't be able to start.", "Confirm Stop", () => {
+                db.collection('exam_data').doc('exam_status').set({ isExamActive: false }, {merge:true}); 
+            });
+        }
+    }
+
+    function updateAdminPass() { 
+        let n = document.getElementById('set-admin-pass').value; 
+        if(n) { 
+            let user = auth.currentUser;
+            if(user) {
+                user.updatePassword(n).then(() => { customAlert("Admin Password Updated!", "Success"); })
+                .catch((error) => { customAlert("Error: Please re-login to update password.", "Session Expired"); });
+            } else { customAlert("Session expired.", "Error"); }
+        } 
+    }
+    
+    function updateDelPass() { 
+        let n = document.getElementById('set-del-pass').value; 
+        if(n) db.collection('exam_data').doc('settings').set({ deletePass: n }, {merge:true}).then(()=>customAlert("System Password Updated!", "Success")); 
+    }
+    
+    function updateDuration() { 
+        let n = document.getElementById('set-duration').value; 
+        if(n && n>0) db.collection('exam_data').doc('settings').set({ examDuration: parseInt(n) }, {merge:true}).then(()=>customAlert("Exam Time Updated!", "Success")); 
+    }
+
+    function saveQuestion() {
+        let text = document.getElementById('q-text').value;
+        let oA = document.getElementById('opt-a').value, oB = document.getElementById('opt-b').value, oC = document.getElementById('opt-c').value, oD = document.getElementById('opt-d').value;
+        let imageB64 = document.getElementById('q-image-base64').value;
+        let year = document.getElementById('q-year').value;
+        let chapter = document.getElementById('q-chapter').value;
+        
+        if(!text || !oA) return customAlert("Fill Question and Options!", "Missing Data");
+        
+        let qData = { text, image: imageB64, options: {A:oA, B:oB, C:oC, D:oD}, answer: document.getElementById('correct-ans').value, isActive: false, year: year, chapter: chapter };
+        let idx = parseInt(document.getElementById('edit-index').value);
+
+        if(idx === -1) { questions.push(qData); } 
+        else { 
+            qData.isActive = questions[idx] && questions[idx].isActive === true; 
+            qData.chapter = chapter || (questions[idx] && questions[idx].chapter) || ""; 
+            questions[idx] = qData; 
+        }
+
+        let btn = document.getElementById('save-btn');
+        btn.innerHTML = "⏳ Saving..."; btn.disabled = true;
+
+        db.collection('exam_data').doc('questions').set({ questionList: questions }).then(() => {
+            btn.innerHTML = "✅ Saved!";
+            setTimeout(() => { btn.innerHTML = "Save to Question Bank"; btn.disabled = false; }, 2000);
+
+            if(idx !== -1) { 
+                cancelEdit(); 
+                if(questions[idx] && questions[idx].isActive !== true) { toggleTeacherView('bank'); } else { toggleTeacherView('live'); }
+            } else { 
+                document.getElementById('q-text').value = '';
+                document.getElementById('opt-a').value = ''; document.getElementById('opt-b').value = '';
+                document.getElementById('opt-c').value = ''; document.getElementById('opt-d').value = '';
+                document.getElementById('correct-ans').value = 'A';
+                document.getElementById('q-year').value = '1st Year';
+                document.getElementById('q-chapter').value = '';
+                removeImage(); document.getElementById('q-text').focus();
+            }
+        }).catch(err => {
+            customAlert("❌ Error: " + err.message, "Database Error"); btn.innerHTML = "Save to Question Bank"; btn.disabled = false;
+        });
+    }
+
+    function toggleActiveStatus(i, viewType) {
+        if(!questions[i]) return;
+        questions[i].isActive = !(questions[i].isActive === true); 
+        db.collection('exam_data').doc('questions').set({ questionList: questions }).then(() => {
+            if(viewType === 'bank') renderBankQuestions();
+            if(viewType === 'examsets') renderExamSets();
+            if(viewType === 'live') renderLiveQuestions();
+        });
+    }
+
+    function createSetFromSelected() {
+        let setName = document.getElementById('bulk-set-name').value.trim();
+        if(!setName) return customAlert("Enter Set Name!", "Missing Information");
+        
+        let checkboxes = document.querySelectorAll('.set-checkbox:checked');
+        if(checkboxes.length === 0) return customAlert("Select at least one question!", "No Selection");
+        
+        checkboxes.forEach(cb => {
+            let idx = parseInt(cb.value);
+            if(questions[idx]) { questions[idx].chapter = setName; }
+        });
+
+        db.collection('exam_data').doc('questions').set({ questionList: questions }).then(() => {
+            customAlert(`✅ ${checkboxes.length} questions saved to "${setName}"!`, "Success");
+            document.getElementById('bulk-set-name').value = '';
+            renderBankQuestions();
+            if(!document.getElementById('exam-sets-section').classList.contains('hidden')) renderExamSets();
+        }).catch(err => customAlert("Error saving to set: " + err.message, "Error"));
+    }
+
+    function moveToStock(i, viewType) {
+        customConfirm("Move this question back to Stock?", "Confirm Move", () => {
+            let q = questions[i];
+            if(q) {
+                delete q.chapter; delete q.assignedSet; delete q.examSet; delete q.setName; delete q.set; delete q.set_name;
+                q.isActive = false;
+                db.collection('exam_data').doc('questions').set({ questionList: questions }).then(() => {
+                    if(viewType === 'bank') renderBankQuestions();
+                    if(viewType === 'examsets') renderExamSets();
+                    if(viewType === 'live') renderLiveQuestions();
+                });
+            }
+        });
+    }
+
+    function generateQuestionHTML(q, i, isLive, viewType, displayIndex) {
+        if(!q || typeof q !== 'object') return '';
+        let qNum = displayIndex ? displayIndex : (i + 1); 
+        
+        let imgHTML = q.image ? `<img src="${q.image}" class="max-h-32 mt-4 rounded-xl border border-slate-200 shadow-sm">` : '';
+        let statusBtnHTML = isLive ? 
+            `<button class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm" onclick="toggleActiveStatus(${i}, '${viewType}')">🔴 Remove</button>` : 
+            `<button class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm" onclick="toggleActiveStatus(${i}, '${viewType}')">🟢 To Live</button>`;
+
+        let setVal = getSetName(q);
+        let setNameDisplay = setVal ? `<span class="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-md text-xs font-bold border border-amber-200">📘 Set: ${setVal}</span>` : '';
+        
+        let extraInfo = `<div class="flex gap-2 mt-3 flex-wrap">
+            <span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md text-xs font-bold border border-indigo-100">🔖 Year: ${q.year || 'N/A'}</span>
+            ${setNameDisplay}
+        </div>`;
+
+        let checkboxHTML = '';
+        if (viewType === 'bank') {
+            checkboxHTML = `<input type="checkbox" class="set-checkbox w-5 h-5 mt-1 mr-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer" value="${i}">`;
+        }
+
+        let oA = q.options ? q.options.A : ''; let oB = q.options ? q.options.B : '';
+        let oC = q.options ? q.options.C : ''; let oD = q.options ? q.options.D : '';
+
+        return `<div class="bg-white border border-slate-200 p-5 md:p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative ${isLive ? 'border-emerald-300 ring-1 ring-emerald-100' : ''}">
+            <div class="flex justify-between items-start gap-4">
+                <div class="flex items-start flex-1">
+                    ${checkboxHTML}
+                    <div>
+                        <strong class="text-lg text-slate-800 leading-snug block font-bold">Q${qNum}: ${q.text || ''}</strong>
+                        ${extraInfo}
+                        ${imgHTML}
+                    </div>
+                </div>
+                <div class="shrink-0">${statusBtnHTML}</div>
+            </div>
+            
+            <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-inner">
+                <span><strong class="text-indigo-600">(A)</strong> ${oA}</span> 
+                <span><strong class="text-indigo-600">(B)</strong> ${oB}</span> 
+                <span><strong class="text-indigo-600">(C)</strong> ${oC}</span> 
+                <span><strong class="text-indigo-600">(D)</strong> ${oD}</span>
+            </div>
+            <div class="mt-5 flex justify-between items-center flex-wrap gap-4">
+                <span class="bg-emerald-50 text-emerald-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-emerald-100">Correct: ${q.answer || ''}</span>
+                <div class="flex gap-2">
+                    ${viewType !== 'bank' ? `<button class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors" onclick="moveToStock(${i}, '${viewType}')">📦 To Stock</button>` : ''}
+                    <button class="bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors" onclick="editQ(${i})">✏️ Edit</button>
+                    <button class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors" onclick="deleteQ(${i})">🗑️ Del</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function renderBankQuestions() {
+        let list = document.getElementById('bank-questions-list'); list.innerHTML = ''; let hasQ = false; let serialNo = 1; 
+        questions.forEach((q, i) => { 
+            if(!q || typeof q !== 'object') return;
+            if(q.isActive !== true && !getSetName(q)) { hasQ = true; list.innerHTML += generateQuestionHTML(q, i, false, 'bank', serialNo); serialNo++; } 
+        });
+        if(!hasQ) list.innerHTML = '<p class="text-center text-slate-400 font-medium py-8 bg-white rounded-2xl border border-slate-200 border-dashed">No new questions in stock.</p>';
+    }
+
+    function renderExamSets() {
+        let list = document.getElementById('exam-sets-list'); list.innerHTML = ''; let hasQ = false; let groupedSets = {};
+
+        questions.forEach((q) => {
+            if(!q || typeof q !== 'object') return;
+            let setName = getSetName(q);
+            if (setName) {
+                if (!groupedSets[setName]) { groupedSets[setName] = []; }
+                groupedSets[setName].push(q);
+            }
+        });
+
+        for (let setName in groupedSets) {
+            hasQ = true;
+            let setQuestions = groupedSets[setName]; let qCount = setQuestions.length;
+            let liveCount = setQuestions.filter(q => q && q.isActive === true).length;
+            
+            let statusBadge = liveCount > 0 
+                ? `<span class="bg-emerald-100 text-emerald-700 text-xs px-3 py-1 rounded-full font-bold ml-3 border border-emerald-200">${liveCount}/${qCount} Live 🟢</span>`
+                : `<span class="bg-slate-100 text-slate-500 text-xs px-3 py-1 rounded-full font-bold ml-3">Not Live 🔴</span>`;
+
+            let liveBtn = (liveCount === qCount)
+                ? `<button class="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 py-3 rounded-xl font-bold text-sm transition-colors border border-rose-100" onclick="toggleLiveSet('${setName}', false)">🔴 Stop Live</button>`
+                : `<button class="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 py-3 rounded-xl font-bold text-sm transition-colors border border-emerald-100 shadow-sm" onclick="toggleLiveSet('${setName}', true)">🟢 Make Live</button>`;
+            
+            list.innerHTML += `
+                <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-center flex-wrap mb-5 gap-3">
+                        <h3 class="text-xl font-black text-slate-800 flex items-center tracking-tight">📁 ${setName} ${statusBadge}</h3>
+                        <span class="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg font-bold text-sm border border-indigo-100">${qCount} Qs</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-3 rounded-xl font-bold text-sm transition-colors border border-indigo-100" onclick="printSpecificSet('${setName}')">🖨️ Print PDF</button>
+                        ${liveBtn}
+                        <button class="flex-1 bg-white hover:bg-slate-50 text-rose-500 border border-slate-200 py-3 rounded-xl font-bold text-sm transition-colors" onclick="deleteSet('${setName}')">🗑️ Delete Set</button>
+                    </div>
+                </div>
+            `;
+        }
+        if(!hasQ) list.innerHTML = '<p class="text-center text-slate-400 font-medium py-8 bg-white rounded-2xl border border-slate-200 border-dashed">No Saved Exam Sets.</p>';
+    }
+
+    function toggleLiveSet(setName, makeLive) {
+        let actionText = makeLive ? "Live" : "Stop";
+        customConfirm(`Make "${setName}" ${actionText}?`, "Confirm Status Change", () => {
+            questions.forEach(q => { if (q && getSetName(q) === setName) q.isActive = makeLive; });
+            db.collection('exam_data').doc('questions').set({ questionList: questions }).then(() => {
+                renderExamSets(); renderLiveQuestions();
+            });
+        });
+    }
+
+    function deleteSet(setName) {
+        customPrompt(`Enter password to delete "${setName}":`, "Authentication Required", (pwd) => {
+            if(pwd === SYS_DEL_PASS) {
+                customConfirm(`Send "${setName}" back to Stock?`, "Confirm Deletion", () => {
+                    questions = questions.map(q => {
+                        if(!q) return null;
+                        if(getSetName(q) === setName) {
+                            delete q.chapter; delete q.assignedSet; delete q.examSet; delete q.setName; delete q.set; delete q.set_name;
+                            q.isActive = false;
+                        }
+                        return q;
+                    });
+                    db.collection('exam_data').doc('questions').set({ questionList: questions }).then(() => {
+                        renderExamSets(); renderLiveQuestions(); renderBankQuestions();
+                    });
+                });
+            } else { customAlert("Wrong Password!", "Error"); }
+        }, 'password');
+    }
+
+    function renderLiveQuestions() {
+        let list = document.getElementById('live-questions-list'); list.innerHTML = ''; let hasQ = false;
+        questions.forEach((q, i) => { if(q && typeof q === 'object' && q.isActive === true) { hasQ = true; list.innerHTML += generateQuestionHTML(q, i, true, 'live', null); } });
+        if(!hasQ) list.innerHTML = '<p class="text-center text-slate-400 font-medium py-8 bg-white rounded-2xl border border-slate-200 border-dashed">No live questions active.</p>';
+    }
+
+    function editQ(i) {
+        customPrompt("Enter password to edit:", "Authentication Required", (pwd) => {
+            if(pwd === SYS_DEL_PASS) {
+                let q = questions[i]; if(!q) return;
+                document.getElementById('q-text').value = q.text || ''; 
+                document.getElementById('opt-a').value = q.options ? q.options.A : ''; document.getElementById('opt-b').value = q.options ? q.options.B : ''; 
+                document.getElementById('opt-c').value = q.options ? q.options.C : ''; document.getElementById('opt-d').value = q.options ? q.options.D : ''; 
+                document.getElementById('correct-ans').value = q.answer || 'A';
+                document.getElementById('q-year').value = q.year || '1st Year'; document.getElementById('q-chapter').value = getSetName(q) || '';
+                if(q.image) {
+                    document.getElementById('q-image-base64').value = q.image; document.getElementById('q-image-preview').src = q.image;
+                    document.getElementById('q-image-preview').classList.remove('hidden'); document.getElementById('remove-img-btn').classList.remove('hidden');
+                } else { removeImage(); }
+                document.getElementById('edit-index').value = i; document.getElementById('form-title').innerText = "Edit Question";
+                document.getElementById('cancel-edit-btn').classList.remove('hidden'); toggleTeacherView('add');
+            } else { customAlert("Wrong Password!", "Error"); }
+        }, 'password');
+    }
+
+    function cancelEdit() {
+        document.getElementById('edit-index').value = "-1"; document.getElementById('form-title').innerText = "Add New Question";
+        document.getElementById('cancel-edit-btn').classList.add('hidden');
+        document.querySelectorAll('#add-question-section input[type="text"]').forEach(i => i.value=''); 
+        document.getElementById('q-year').value = '1st Year'; document.getElementById('q-chapter').value = '';
+        removeImage();
+    }
+
+    function deleteQ(i) {
+        customPrompt("Enter password to delete:", "Authentication Required", (pwd) => {
+            if(pwd === SYS_DEL_PASS) { 
+                customConfirm("Permanently delete this question?", "Confirm Deletion", () => {
+                    questions[i] = null; db.collection('exam_data').doc('questions').set({ questionList: questions }); 
+                });
+            } else { customAlert("Wrong Password!", "Error"); }
+        }, 'password');
+    }
+
+    let currentEditStudentId = null;
+    function editResult(id) {
+        let r = studentResults.find(x => x.id === id); if(!r) return;
+        currentEditStudentId = id;
+        document.getElementById('edit-s-name').value = r.name || ''; document.getElementById('edit-s-father').value = r.father || '';
+        document.getElementById('edit-s-roll').value = r.roll || ''; document.getElementById('edit-s-phone').value = r.phone || '';
+        document.getElementById('edit-s-month').value = r.month || ''; document.getElementById('edit-s-session').value = r.session || '';
+        document.getElementById('edit-s-trade').value = r.trade || '';
+        document.getElementById('edit-student-modal').classList.remove('hidden');
+    }
+
+    function saveEditedResult() {
+        if(!currentEditStudentId) return;
+        let updatedData = {
+            name: document.getElementById('edit-s-name').value, father: document.getElementById('edit-s-father').value,
+            roll: document.getElementById('edit-s-roll').value, phone: document.getElementById('edit-s-phone').value,
+            month: document.getElementById('edit-s-month').value, session: document.getElementById('edit-s-session').value, trade: document.getElementById('edit-s-trade').value
+        };
+        db.collection('test_results').doc(currentEditStudentId).update(updatedData).then(() => { closeEditModal(); });
+    }
+    function closeEditModal() { document.getElementById('edit-student-modal').classList.add('hidden'); currentEditStudentId = null; }
+
+    function printAllResults() {
+        if(studentResults.length === 0) return customAlert("No results to print.", "Empty Data");
+        let html = `
+            <div class="text-center border-b-2 border-slate-800 pb-6 mb-8">
+                <h1 class="text-3xl font-black text-slate-800 tracking-tight">ITI MAHNAR - CONSOLIDATED RESULTS</h1>
+                <p class="text-slate-500 mt-2 font-medium">Print Date: ${new Date().toLocaleDateString('en-IN')}</p>
+            </div>
+            <table class="w-full text-left text-sm border-collapse">
+                <thead><tr class="bg-slate-100 text-slate-700">
+                    <th class="p-3 border border-slate-300">Name</th><th class="p-3 border border-slate-300">Father</th><th class="p-3 border border-slate-300">Roll</th>
+                    <th class="p-3 border border-slate-300">Trade</th><th class="p-3 border border-slate-300">Session</th><th class="p-3 border border-slate-300">Score</th>
+                </tr></thead><tbody>
+        `;
+        studentResults.forEach(r => {
+            if(!r) return;
+            html += `<tr>
+                <td class="p-3 border border-slate-300 font-bold">${r.name || ''}</td><td class="p-3 border border-slate-300">${r.father || '-'}</td>
+                <td class="p-3 border border-slate-300">${r.roll || ''}</td><td class="p-3 border border-slate-300">${r.trade || ''}</td>
+                <td class="p-3 border border-slate-300">${r.session || '-'}</td>
+                <td class="p-3 border border-slate-300 font-bold text-emerald-600 text-base">${r.score || 0} / ${r.total || 0}</td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('report-content').innerHTML = html;
+        document.getElementById('report-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; 
+        setTimeout(() => { window.print(); }, 500);
+    }
+
+    function printSpecificSet(setName) {
+        let setQuestions = questions.filter(q => q && getSetName(q) === setName);
+        if (setQuestions.length === 0) return customAlert("Empty Set.", "No Questions");
+
+        let html = `
+            <div class="text-center border-b-2 border-black pb-4 mb-6">
+                <h2 class="text-2xl font-serif font-bold uppercase underline">${setName}</h2>
+            </div>
+            <div class="columns-2 gap-10 text-sm font-serif text-black">
+        `;
+        let serialNo = 1;
+        setQuestions.forEach((q) => {
+            let imgHTML = q.image ? `<img src="${q.image}" class="max-w-full max-h-32 mt-2 mb-2 block">` : '';
+            let pageBreak = (serialNo % 25 === 0) ? 'break-after: page;' : '';
+            html += `
+                <div class="break-inside-avoid mb-5" style="${pageBreak}">
+                    <div class="font-bold mb-1">${serialNo}). ${q.text || ''}</div>
+                    ${imgHTML}
+                    <div class="ml-4 leading-relaxed">
+                        <div>a) ${q.options ? q.options.A : ''}</div><div>b) ${q.options ? q.options.B : ''}</div>
+                        <div>c) ${q.options ? q.options.C : ''}</div><div>d) ${q.options ? q.options.D : ''}</div>
+                    </div>
+                </div>`;
+            serialNo++;
+        });
+        html += `</div>`;
+        document.getElementById('report-content').innerHTML = html;
+        document.getElementById('report-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; 
+        setTimeout(() => { window.print(); }, 500);
+    }
+
+    function viewReport(id) {
+        let r = studentResults.find(x => x.id === id); if(!r) return;
+
+        let html = `
+            <div class="text-center border-b-2 border-slate-200 pb-6 mb-8">
+                <h2 class="text-3xl font-black text-slate-800 tracking-tight">REPORT CARD</h2>
+                <p class="text-slate-500 mt-2 font-medium">${r.dateTime || 'N/A'}</p>
+            </div>
+            <div class="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-200 mb-8 grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+                <div><span class="text-slate-500 block text-xs uppercase font-bold mb-1">Name</span><strong class="text-slate-800 text-base">${r.name || ''}</strong></div>
+                <div><span class="text-slate-500 block text-xs uppercase font-bold mb-1">Father</span><strong class="text-slate-800 text-base">${r.father || '-'}</strong></div>
+                <div><span class="text-slate-500 block text-xs uppercase font-bold mb-1">Roll / Phone</span><strong class="text-slate-800 text-base">${r.roll} / ${r.phone}</strong></div>
+                <div><span class="text-slate-500 block text-xs uppercase font-bold mb-1">Trade</span><strong class="text-indigo-600 text-base">${r.trade || ''}</strong></div>
+                <div class="col-span-2 mt-4 pt-4 border-t border-slate-200"><span class="text-slate-500 block text-xs uppercase font-bold mb-1">Final Score</span><strong class="text-emerald-600 text-3xl font-black">${r.score || 0} / ${r.total || 0}</strong></div>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-6">Detailed Answer Key</h3>
+        `;
+
+        let reportQuestions = r.testSnapshot || []; 
+        if(reportQuestions.length > 0) {
+            reportQuestions.forEach((q, i) => {
+                if(!q) return;
+                let sAns = q.studentAnswer, isCorrect = sAns === q.answer;
+                let statusBadge = (sAns === 'Unattempted' || sAns === '') ? '<span class="bg-slate-200 text-slate-700 px-3 py-1 rounded-md text-xs font-bold">⚪ Unattempted</span>' : 
+                                 (isCorrect ? '<span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-md text-xs font-bold">✅ Correct</span>' : '<span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-md text-xs font-bold">❌ Wrong</span>');
+                
+                html += `
+                    <div class="bg-white border border-slate-200 p-6 rounded-2xl mb-6 shadow-sm">
+                        <p class="text-lg font-bold text-slate-800 mb-4 leading-snug"><strong>Q${i+1}:</strong> ${q.text || ''}</p>
+                        ${q.image ? `<img src="${q.image}" class="max-h-32 rounded-lg border border-slate-200 mb-4">` : ''}
+                        <div class="grid grid-cols-2 gap-3 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 shadow-inner">
+                            <span><strong class="text-indigo-600">(A)</strong> ${q.options ? q.options.A : ''}</span><span><strong class="text-indigo-600">(B)</strong> ${q.options ? q.options.B : ''}</span>
+                            <span><strong class="text-indigo-600">(C)</strong> ${q.options ? q.options.C : ''}</span><span><strong class="text-indigo-600">(D)</strong> ${q.options ? q.options.D : ''}</span>
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-50 px-4 py-3 rounded-xl border border-slate-100">
+                            <span class="text-sm font-medium text-slate-600">Correct: <strong class="text-emerald-600 font-bold">${q.answer || ''}</strong></span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-sm font-medium text-slate-600">Student: <strong>${sAns}</strong></span>
+                                ${statusBadge}
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        } else { html += `<p class="text-center text-rose-500 font-bold py-8 bg-rose-50 rounded-xl border border-rose-100">Old record. Details unavailable.</p>`; }
+
+        document.getElementById('report-content').innerHTML = html;
+        document.getElementById('report-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; 
+    }
+
+    function closeReport() { document.getElementById('report-modal').classList.add('hidden'); document.body.style.overflow = 'auto'; }
+    function approveResult(id) { customConfirm("Approve this result?", "Confirm Approval", () => { db.collection('test_results').doc(id).update({ approvalStatus: 'Approved' }); }); }
+    function deleteResult(id) {
+        customPrompt("Enter password to delete:", "Authentication Required", (pwd) => {
+            if(pwd === SYS_DEL_PASS) { customConfirm("Permanently Delete?", "Confirm Deletion", () => { db.collection('test_results').doc(id).delete(); }); } 
+            else { customAlert("Wrong Password!", "Error"); }
+        }, 'password');
+    }
+
+    function renderResults() {
+        let tbody = document.getElementById('result-table-body'); if(!tbody) return;
+        tbody.innerHTML = studentResults.length ? '' : '<tr><td colspan="10" class="px-6 py-10 text-center text-slate-400 font-medium">No results found.</td></tr>';
+        
+        for(let i = 0; i < studentResults.length; i++) {
+            let r = studentResults[i]; if(!r) continue;
+            let isSub = r.status === 'Submitted';
+            let appBtn = r.approvalStatus === 'Approved' ? '<span class="text-emerald-600 font-bold text-xs bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">✅ Apprvd</span>' : `<button class="text-indigo-600 font-bold text-xs hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-transparent hover:border-indigo-100 transition-colors" onclick="approveResult('${r.id}')">Approve</button>`;
+
+            tbody.innerHTML += `<tr class="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
+                <td class="px-6 py-4 font-bold text-slate-800">${r.name || ''}</td>
+                <td class="px-6 py-4">${r.father || '-'}</td>
+                <td class="px-6 py-4 font-medium">${r.roll || ''}</td>
+                <td class="px-6 py-4">${r.session || '-'}</td>
+                <td class="px-6 py-4">${r.month || '-'}</td>
+                <td class="px-6 py-4"><span class="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-100">${r.trade || ''}</span></td>
+                <td class="px-6 py-4 font-black text-emerald-600 text-base">${r.score || 0}/${r.total || 0}</td>
+                <td class="px-6 py-4 font-bold ${isSub ? 'text-emerald-500' : 'text-rose-500'}">${r.status || ''}</td>
+                <td class="px-6 py-4">${appBtn}</td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex gap-2 justify-center">
+                        <button class="bg-amber-50 hover:bg-amber-100 text-amber-700 p-2 rounded-lg transition-colors border border-amber-100" title="Edit" onclick="editResult('${r.id}')">✏️</button>
+                        <button class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 p-2 rounded-lg transition-colors border border-indigo-100" title="View" onclick="viewReport('${r.id}')">👁️</button>
+                        <button class="bg-rose-50 hover:bg-rose-100 text-rose-700 p-2 rounded-lg transition-colors border border-rose-100" title="Delete" onclick="deleteResult('${r.id}')">🗑️</button>
+                    </div>
+                </td>
+            </tr>`;
+        }
+    }
+</script>
+</body>
+</html>
